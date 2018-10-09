@@ -1,93 +1,83 @@
-// Base Gulp File
-var gulp = require('gulp'),
-    watch = require('gulp-watch'),
-    sass = require('gulp-sass'),
-    sourcemaps = require('gulp-sourcemaps'),
-    cssBase64 = require('gulp-css-base64'),
-    path = require('path'),
-    notify = require('gulp-notify'),
-    inlinesource = require('gulp-inline-source'),
-    browserSync = require('browser-sync'),
-    imagemin = require('gulp-imagemin'),
-    del = require('del'),
-    cache = require('gulp-cache'),
-    uglify = require('gulp-uglify'),
-    autoprefixer = require('gulp-autoprefixer'),
-    runSequence = require('run-sequence');
+'use strict';
+
+let browserSync = require('browser-sync').create();
+let path = require('path');
+let del = require('del');
+let gulp = require('gulp');
+let autoprefixer = require('gulp-autoprefixer');
+let notify = require('gulp-notify');
+let sass = require('gulp-sass');
+let sourcemaps = require('gulp-sourcemaps');
+let less = require('gulp-less');
+let runSequence = require('run-sequence');
 
 // Task to compile SCSS
-gulp.task('sass', function () {
-  return gulp.src('./src/scss/styles.scss')
+gulp.task('sass', () => {
+  return gulp.src('./scss/index.scss')
     .pipe(sourcemaps.init())
     .pipe(sass({
+      outputStyle: 'nested',
       errLogToConsole: false,
-      paths: [ path.join(__dirname, 'scss', 'includes') ]
+      paths: [path.join(__dirname, 'scss', 'includes')]
     })
-    .on("error", notify.onError(function(error) {
-      return "Failed to Compile SCSS: " + error.message;
-    })))
-    .pipe(cssBase64())
+      .on("error", notify.onError(error => {
+        return "Failed to Compile SCSS: " + error.message;
+      })))
     .pipe(autoprefixer())
     .pipe(sourcemaps.write('./'))
-    .pipe(gulp.dest('./src/css/'))
-    .pipe(gulp.dest('./dist/css/'))
-    .pipe(browserSync.reload({
-      stream: true
-    }))
-    .pipe(notify("SCSS Compiled Successfully :)"));
+    .pipe(gulp.dest('./css/'))
+    .pipe(browserSync.stream())
+    .pipe(notify({
+      message: "SCSS Compiled Successfully :)",
+      onLast: true
+    }));
 });
 
-// Task to Minify JS
-gulp.task('jsmin', function() {
-  return gulp.src('./src/js/**/*.js')
-    .pipe(uglify())
-    .pipe(gulp.dest('./dist/js/'));
-});
-
-// Minify Images
-gulp.task('imagemin', function (){
-  return gulp.src('./src/img/**/*.+(png|jpg|jpeg|gif|svg)')
-  // Caching images that ran through imagemin
-  .pipe(cache(imagemin({
-      interlaced: true
+// Task to compile LESS
+gulp.task('less', () => {
+  return gulp.src('./less/index.less')
+    .pipe(sourcemaps.init())
+    .pipe(less({
+      paths: [ path.join(__dirname, 'less', 'includes') ]
+    })
+    .on("error", notify.onError(error => {
+      return "Failed to Compile LESS: " + error.message;
     })))
-  .pipe(gulp.dest('./dist/img'));
+    .pipe(autoprefixer())
+    .pipe(sourcemaps.write('./'))
+    .pipe(gulp.dest('./css/'))
+    .pipe(browserSync.stream())
+    .pipe(notify({
+      message: "LESS Compiled Successfully :)",
+      onLast: true
+    }));
 });
 
 // BrowserSync Task (Live reload)
-gulp.task('browserSync', function() {
-  browserSync({
+gulp.task('browserSync', () => {
+  browserSync.init({
     server: {
-      baseDir: './src/'
+      baseDir: "./"
     }
-  })
-});
-
-// Gulp Inline Source Task
-// Embed scripts, CSS or images inline (make sure to add an inline attribute to the linked files)
-// Eg: <script src="default.js" inline></script>
-// Will compile all inline within the html file (less http requests - woot!)
-gulp.task('inlinesource', function () {
-  return gulp.src('./src/**/*.html')
-    .pipe(inlinesource())
-    .pipe(gulp.dest('./dist/'));
+  });
 });
 
 // Gulp Watch Task
-gulp.task('watch', ['browserSync'], function () {
-   gulp.watch('./src/scss/**/*', ['sass']);
-   gulp.watch('./src/**/*.html').on('change', browserSync.reload);
+gulp.task('watch', ['browserSync'], () => {
+  gulp.watch('./scss/**/*', ['sass']);
+  gulp.watch('./less/**/*', ['less']);
+  gulp.watch('./**/*.html').on('change', browserSync.reload);
 });
 
 // Gulp Clean Up Task
-gulp.task('clean', function() {
-  del('dist');
+gulp.task('clean', () => {
+  return del('./css/');
 });
 
 // Gulp Default Task
 gulp.task('default', ['watch']);
 
 // Gulp Build Task
-gulp.task('build', function() {
-  runSequence('clean', 'sass', 'imagemin', 'jsmin', 'inlinesource');
+gulp.task('build', callback => {
+  runSequence('clean', 'sass', callback);
 });
